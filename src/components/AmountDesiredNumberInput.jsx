@@ -9,7 +9,6 @@ export function AmountDesiredNumberInput({
   ...props
 }) {
   const {balances, busy} = useContext(AssetsContext)
-  console.log('balances', balances)
   return (<div className={`flex flex-col ${className || ""} items-start`}>
     <input
       className={`bg-transparent text-white text-3xl w-full`}

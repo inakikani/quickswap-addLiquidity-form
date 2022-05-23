@@ -1,5 +1,5 @@
 export function Loading(){
-  return <span className='animate-spin'>&#x27F2;</span>
+  return <span className='inline-block animate-spin'>&#x27F2;</span>
 }
 
 export default Loading

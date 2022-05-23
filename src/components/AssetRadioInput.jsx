@@ -10,7 +10,6 @@ export function AssetRadioInput({
   ...props
 }) {
   const {balances} = useContext(AssetsContext)
-  console.log('balances', balances)
   return (<>
     <input 
       type="radio" id={`radio-${asset}`} name={name} 

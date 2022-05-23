@@ -3,6 +3,7 @@ import SUPPORTED_ASSETS from "../data/supported-assets"
 import ADDRESSES from '../data/contracts-addresses'
 import { ethers } from "ethers"
 import ERC20Json from '../data/IUniswapV2ERC20.json'
+import IUniswapV2Router02Json from '../data/IUniswapV2Router02.json'
 
 const DEFAULT_STATE = {
     _name: "swapAssetsForm",
@@ -21,13 +22,6 @@ const DEFAULT_STATE = {
     success: void 0,
     busy: false
 }
-
-// token, //address
-// amountTokenDesired, //uint
-// amountTokenMin, //uint
-// amountETHMin, //uint
-// to, //address
-// deadline //uint
 
 export const getters = {
     newState: (assets) => {
@@ -76,17 +70,80 @@ export const mutations = {
 }
 
 export const promises = {
-    addLiquidity: payload => Promise.resolve([0,0,0]),
-    addLiquidityETH: payload => Promise.resolve([0,0,0]),
-    balanceOf: async function(asset, account){
+    addLiquidity: async ({
+        tokenA, //address
+        tokenB, //address
+        amountADesired, //uint
+        amountBDesired, //uint
+        amountAMin, //uint
+        amountBMin, //uint
+        to, //address
+    }) => {
+        console.log('addLiquidity', {
+            tokenA, //address
+            tokenB, //address
+            amountADesired, //uint
+            amountBDesired, //uint
+            amountAMin, //uint
+            amountBMin, //uint
+            to, //address
+        })
+        const _contract = new ethers.Contract(
+            ADDRESSES.QuickswapRouter,
+            IUniswapV2Router02Json.abi,
+            (new ethers.providers.Web3Provider(window.ethereum, 'any')).getSigner()
+        );
+        let res = await _contract.addLiquidity(
+            ethers.utils.getAddress(tokenA),
+            ethers.utils.getAddress(tokenB),
+            Number(amountADesired),
+            Number(amountBDesired),
+            Number(amountAMin),
+            Number(amountBMin),
+            ethers.utils.getAddress(to),
+            Math.ceil(( Date.now()+(1000*5) ) / 1000) // Unix 5s in future
+        );
+        return res
+    },
+    addLiquidityETH: async ({
+        token, //address
+        amountTokenDesired, //uint
+        amountTokenMin, //uint
+        amountETHMin, //uint
+        to, //address
+        value, //uint
+    }) => {
+        console.log('addLiquidityETH', {
+            token, //address
+            amountTokenDesired, //uint
+            amountTokenMin, //uint
+            amountETHMin, //uint
+            to, //address
+        })
+        const _contract = new ethers.Contract(
+            ADDRESSES.QuickswapRouter,
+            IUniswapV2Router02Json.abi,
+            (new ethers.providers.Web3Provider(window.ethereum, 'any')).getSigner()
+        );
+        let res = await _contract.addLiquidityETH(
+            ethers.utils.getAddress(token),
+            Number(amountTokenDesired),
+            Number(amountTokenMin),
+            Number(amountETHMin),
+            ethers.utils.getAddress(to),
+            Math.ceil(( Date.now()+(1000*5) ) / 1000), // Unix 5s in future,
+            { value: Number(value) }
+        );
+        console.log('done')
+        return res
+    },
+    balanceOf: async (asset, account) => {
         const _contract = new ethers.Contract(
             ADDRESSES[asset],
             ERC20Json.abi,
             (new ethers.providers.Web3Provider(window.ethereum, 'any')).getSigner()
         )
-        console.log('balanceOf', asset, account, _contract.address)
         let balance = await _contract.balanceOf(ethers.utils.getAddress(account))
-        console.log('res', balance)
         return [asset, Number(balance)]
     }
 }

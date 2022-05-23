@@ -12,7 +12,7 @@ function App() {
       <div className='bg-darkpurple text-white w-full h-full flex justify-center'>
         <div className='max-w-lg flex-grow flex-shrink mx-4'>
           <header className='flex justify-end basis-full flex-none mt-4'>
-            <ConnectMetamaskButton onClick={account ? connect : e=>{}}/>
+            <ConnectMetamaskButton onClick={!account ? connect : e=>{}}/>
           </header>
           
           {ethErrors && ethErrors.length > 0 
@@ -28,7 +28,7 @@ function App() {
             <h5 className='text-right text-grey'>via Quickswap</h5>
           </div>
           <main className="block w-full my-10">
-            <SupplyLiquidityForm account={account}/>
+            <SupplyLiquidityForm />
           </main>
         </div>
       </div>
