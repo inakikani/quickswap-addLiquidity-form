@@ -8,8 +8,9 @@ export function AssetTickerButton({
 }) {
   let _iconUrl = ICONS[asset]
   let _tick = asText[asset]?.toUpperCase()
-  return (<button {...props} className={`${className}`}>
-    <img src={_iconUrl} className=""/>
-    <span>{_tick}</span>
-  </button>)
+  return (
+    <button {...props} className={`${className}`}>
+      <img src={_iconUrl} className="" alt="icon of a crypto asset" />
+      <span>{_tick}</span>
+    </button>)
 }

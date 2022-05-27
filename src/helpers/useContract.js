@@ -7,10 +7,9 @@ export function useContract(provider,{address, abi}){
     const [error, setError] = useState(void 0)
     useEffect(() => {
         try {
-            // if(!provider || provider.isConnected()) return
-            if(!provider) throw 'cannot instanciate contract without provider'
-            if(!address) throw 'cannot instanciate contract without address'
-            if(!abi) throw 'cannot instanciate contract without abi'
+            if(!provider) { throw new TypeError( 'cannot instanciate contract without provider' )}
+            if(!address) { throw new TypeError( 'cannot instanciate contract without address' )}
+            if(!abi) { throw new TypeError( 'cannot instanciate contract without abi' )}
             setContract(new ethers.Contract(
                 address,
                 abi,

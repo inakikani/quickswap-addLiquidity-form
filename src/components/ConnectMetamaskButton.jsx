@@ -7,16 +7,15 @@ import { formatAddress } from '../helpers/format-address';
 export function ConnectMetamaskButton({
   className,
   ...props
-}){
-  const {account} = useContext(EthereumContext)  
-  console.log(account)
-  return <button 
+}) {
+  const { account } = useContext(EthereumContext)
+  return <button
     className={`
       flex gap-2 justify-center items-center 
       px-4 py-1 border border-pink rounded-full 
       ${classes.clickable} 
       ${className}
-    `} 
+    `}
     {...props}
   >
     <MetamaskIcon className='w-8 h-8' />

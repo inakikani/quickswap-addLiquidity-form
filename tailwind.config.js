@@ -14,7 +14,7 @@ module.exports = {
       'darkpurple': '#2a1d29',
       'medpurple': '#40303b',
       'purple': '#544550',
-      'darkblue': '#00495f',
+      'darkblue': '#00495f'
     },
     extend: {},
   },

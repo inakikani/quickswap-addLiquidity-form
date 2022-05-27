@@ -1,46 +1,48 @@
 import { useContext, useEffect, useState } from 'react';
 import SUPPORTED_ASSETS from "../data/supported-assets"
-import ADDRESSES from '../data/contracts-addresses'
 import { getters, mutations, promises } from '../state';
 import { classes } from '../helpers/css-classes'
-import {FormControl} from './FormControl'
-import { AmountDesiredNumberInput } from './AmountDesiredNumberInput'
+import { FormControl } from './FormControl'
+import { AssetTokensAmountInput } from './AssetTokensAmountInput'
 import { AssetTickerButton } from './AssetTickerButton'
+import { AssetBalanceSmall } from './AssetBalanceSmall'
+import { AssetsSelectRadios } from './AssetsSelectRadios'
 import { FormSingleSubmitButton } from './FormSingleSubmitButton'
-import { AssetRadioInput } from './AssetRadioInput'
 import { EthereumContext, getMetamaskErrorReason } from '../helpers/useMetamask.hook';
 import { ClientError } from '../helpers/errors';
 import Loading from './Loading';
 import { AssetsContext } from '../helpers/useAccountBalances.hook';
+import { FullScreenOverlay } from './FullScreenOverlay';
 
 export function SupplyLiquidityForm() {
-  const {account} = useContext(EthereumContext)
-  const {balances} = useContext(AssetsContext)
+  const { account } = useContext(EthereumContext)
+  const { balances } = useContext(AssetsContext)
   const [state, setState] = useState(getters.newState(Object.values(SUPPORTED_ASSETS)))
-  
-  useEffect( () => {
-    if(!account) return
-    setState( mutations.setFormProperty('to', account) )
+  useEffect(() => {
+    if (!account) return
+    setState(mutations.setWeb3PayloadValue('to', account))
   }, [account])
-  
-  const [open, setOpen] = useState(false)
+
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(void 0)
+  const [formError, setFormError] = useState(void 0)
   const [success, setSuccess] = useState(void 0)
+  useEffect(() => {
+    let delay
+    if (success) {
+      delay = setTimeout(() => { setSuccess(void 0) }, 3000)
+    }
+    return () => { clearTimeout(delay) }
+  }, [success])
 
-  const invalidFormValues = () => {
-    let desiredAmounts = state.tuple.map( (asset,idx) => idx === 0 ? state.amountADesired : state.amountBDesired)
-    let availableAmounts = state.tuple.map( (asset,idx) => balances?.[asset])
-    return desiredAmounts[0] > availableAmounts[0] || desiredAmounts[1] > availableAmounts[1]
-  }
+  const [tokenToSwitchFor, setTokenToSwitchFor] = useState(void 0)
+  const [assetToSwitch, setAssetToSwitch] = useState(void 0)
 
   const onSubmit = e => {
     try {
       e.preventDefault()
-      invalidFormValues()
       setBusy(true)
-      console.log('onSubmit', state)
-      let ethIdx = state.tuple.indexOf(SUPPORTED_ASSETS.WETH)
+      let ethIdx = [state.formValues.tokenA, state.formValues.tokenB].indexOf(SUPPORTED_ASSETS.WETH)
       let hasEth = ethIdx !== -1
       let _notEthToken = ethIdx === 1 ? 'A' : 'B'
       let _ethToken = ethIdx === 0 ? 'A' : 'B'
@@ -49,144 +51,159 @@ export function SupplyLiquidityForm() {
         : promises.addLiquidity
       let _addLiquidtyParams = hasEth
         ? {
-          token: state[`token${_notEthToken}`],
-          amountTokenDesired: state[`amount${_notEthToken}Desired`],
-          amountTokenMin: state[`amount${_notEthToken}Min`],
-          amountETHMin: state[`amount${_ethToken}Min`],
-          to: state.to,
-          value: state[`amount${_ethToken}Desired`]
+          token: state.web3Payload[`token${_notEthToken}`],
+          amountTokenDesired: state.web3Payload[`amount${_notEthToken}Desired`],
+          amountTokenMin: state.web3Payload[`amount${_notEthToken}Min`],
+          amountETHMin: state.web3Payload[`amount${_ethToken}Min`],
+          to: state.web3Payload.to,
+          value: state.web3Payload[`amount${_ethToken}Desired`]
         }
         : {
-          tokenA: state.tokenA, 
-          tokenB: state.tokenB, 
-          amountADesired: state.amountADesired,
-          amountBDesired: state.amountBDesired,
-          amountAMin: state.amountAMin,
-          amountBMin: state.amountBMin,
-          to: state.to,
+          tokenA: state.web3Payload.tokenA,
+          tokenB: state.web3Payload.tokenB,
+          amountADesired: state.web3Payload.amountADesired,
+          amountBDesired: state.web3Payload.amountBDesired,
+          amountAMin: state.web3Payload.amountAMin,
+          amountBMin: state.web3Payload.amountBMin,
+          to: state.web3Payload.to,
         }
       _addLiquidityFn(_addLiquidtyParams)
-        .then(res => {
+        .then(() => {
           setBusy(false)
-          setSuccess("OK")
+          setSuccess("Success")
         })
         .catch(error => {
           setBusy(false)
-          setError( new ClientError(error, getMetamaskErrorReason(error)))
+          setError(new ClientError(error, getMetamaskErrorReason(error)))
         })
 
     } catch (error) {
-      setError( new ClientError( error, "Unable to add liquidity" ))
+      setError(new ClientError(error, "Unable to add liquidity"))
     }
   }
 
   const onChange = e => {
-    const {name, value} = e.target
-    console.log(name, value)
-    
-    switch (name) {
-      case 'amountADesired':
-        setState( mutations.setFormProperty('amountAMin', value*0.95) )
-      case 'amountBDesired':
-        setState( mutations.setFormProperty('amountBMin', value*0.95) )
-        setState( mutations.setFormProperty(name, value) )
-        break;
-      case 'pick-asset':
-        let _name = tgtToken === 0 ? 'tokenA' : 'tokenB'
-        setState( mutations.setFormProperty(_name, ADDRESSES[value]) )
-        setState( mutations.switchAsset(tgtToken, value) )
-        break;
-    
-      default:
-        break;
+    try {
+      const { name, value } = e.target
+      setFormError(void 0)
+      let newState = mutations.setFormValue(name, value)({ ...state })
+      state.validateForm(newState.formValues, balances)
+      setState(mutations.setFormValue(name, value))
+      closeSelectAssetModal()
+
+    } catch (error) {
+
+      switch (error.message) {
+        case "form: tokens cannot be identical":
+          break;
+        default:
+          setFormError(error)
+          break;
+      }
+      console.log(error)
+      closeSelectAssetModal()
     }
-    closeSelectAssetModal()
   }
 
-  const [tgtToken, setTgtToken] = useState(void 0)
-  const openSelectAssetModalForToken = tupleIndex => e => {
-    // e.stopPropagation()
+  // useEffect(() => {
+  //   try {
+  //     if (!state?.formValues?.tokenA || !state?.formValues?.tokenB) return
+  //     promises.getReserves([state.formValues.tokenA, state.formValues.tokenB])
+  //       .then(reserves => {
+  //         setState(mutations.setRate(reserves))
+  //       })
+  //       .catch(console.log)
+  //   } catch (error) {
+  //     console.log(error)
+  //   }
+  // }, [state?.formValues?.tokenA, state?.formValues?.tokenB])
+
+  const openSelectAssetModalForToken = (token, asset) => e => {
     e.preventDefault()
-    setTgtToken(tupleIndex)
-    setOpen(true) 
+    setAssetToSwitch(asset)
+    setTokenToSwitchFor(token)
   }
-  const closeSelectAssetModal = e => { setOpen(false) }
+  const closeSelectAssetModal = e => { setTokenToSwitchFor(void 0) }
 
   return (
-  <form className={classes.card}
-    onSubmit={onSubmit} onChange={onChange}
-  >
-    {/* TokenA */}
-    <FormControl className={`flex justify-between items-start gap-4`}>
-      <AmountDesiredNumberInput 
-        name="amountADesired"
-        asset={state?.tuple?.[0]}
-        className={`relative basis-0 flex-shrink flex-grow`}
-      />
-      <AssetTickerButton
-        onClick={openSelectAssetModalForToken(0)}
-        asset={state?.tuple?.[0]}
-        className={`${classes.tickerButton} ${classes.clickable} bg-medpurple flex-none`}
-      />
-    </FormControl>
-    
-    <div className='flex justify-center text-white h-0 items-center text-4xl'>+</div>
-    
-    {/* TokenB */}
-    <FormControl className={`flex justify-between items-start gap-4`}>
-      <AmountDesiredNumberInput 
-        name="amountBDesired"
-        asset={state?.tuple?.[1]}
-        className={`relative basis-0 flex-shrink flex-grow`}
-      />
-      <AssetTickerButton 
-        onClick={openSelectAssetModalForToken(1)}
-        asset={state?.tuple?.[1]}
-        className={`${classes.tickerButton} ${classes.clickable} bg-medpurple flex-none`}
-      />
-    </FormControl>
-    <FormSingleSubmitButton disabled={invalidFormValues()} className={`${classes.clickable} bg-lightblue text-darkblue mt-4`}>Supply</FormSingleSubmitButton>
+    <form className={classes.card}
+      onSubmit={onSubmit} onChange={onChange}
+    >
+      {/* TokenA */}
+      <FormControl className={`flex justify-between items-start gap-4`}>
+        <div className={`
+            relative flex flex-col items-start
+            basis-0 flex-shrink flex-grow
+          `}
+        >
+          <AssetTokensAmountInput name="amountADesired" />
+          <AssetBalanceSmall asset={state?.formValues?.tokenA} />
+        </div>
+        <AssetTickerButton
+          className={`${classes.tickerButton} ${classes.clickable} bg-medpurple flex-none`}
+          onClick={openSelectAssetModalForToken('tokenA', state?.formValues?.tokenA)}
+          asset={state?.formValues?.tokenA}
+        />
+      </FormControl>
 
-    {/* notifications */}
-    <div 
-      className={`
-        mt-4 transition-opacity duration-300
-        ${error || success || busy ? 'opacity-100' : 'opacity-0'}
-      `}>
-      {busy && <p className='line-clamp-3 text-center'><Loading className="text-4xl"/></p>}
-      {error && <p className='line-clamp-3 text-center'>{error.message}</p>}
-      {success && <p className='line-clamp-3 text-center'>{success}</p>}
-    </div>
+      <div className='flex justify-center text-white h-0 items-center text-4xl'>+</div>
 
-    {/* Switch asset modal */}
-    <div onClick={closeSelectAssetModal} className={ // backdrop & container
-      `fixed h-screen w-screen top-0 left-0 bg-opacity-50 bg-black 
-      flex justify-center
-      transition-all duration-300 ease-in-out
-      ${open
-        ?'translate-x-0 opacity-100'
-        :'translate-x-full opacity-0'
-      }`
-    }>
-      {open 
-      && 
-      <div className={`${classes.card} max-w-lg flex-grow mx-4 my-auto`}
-        onClick={e => e.stopPropagation()} // do not trigger backdrop click on inner clicks
+      {/* TokenB */}
+      <FormControl className={`flex justify-between items-start gap-4`}>
+        <div className={`
+            relative flex flex-col items-start
+            basis-0 flex-shrink flex-grow
+          `}
+        >
+          <AssetTokensAmountInput name="amountBDesired" />
+          <AssetBalanceSmall asset={state?.formValues?.tokenB} />
+        </div>
+        <AssetTickerButton
+          className={`${classes.tickerButton} ${classes.clickable} bg-medpurple flex-none`}
+          onClick={openSelectAssetModalForToken('tokenB', state?.formValues?.tokenB)}
+          asset={state?.formValues?.tokenB}
+        />
+      </FormControl>
+
+      <FormSingleSubmitButton
+        disabled={!!formError}
+        className={`
+        bg-lightblue text-darkblue mt-4
+          ${!formError && classes.clickable} 
+          ${formError && 'bg-opacity-40'} 
+          ${formError && 'text-darkpurple'} 
+          transition-all duration-300
+        `}
       >
-        <h1 className='w-full text-xl my-4'>Select Token</h1>
-        {Object.keys(SUPPORTED_ASSETS).map( asset => (
-            <AssetRadioInput key={asset}
-              asset={asset}
-              className={`
-                ${asset === state?.tuple?.[tgtToken] ? classes.rowInactive : classes.row}
-                ${asset === state?.tuple?.[tgtToken] || classes.clickable} 
-                ${asset === state?.tuple?.[tgtToken] && 'border border-lightpink/30'}
-                flex justify-between items-center w-full 
-              `}
+        Supply
+      </FormSingleSubmitButton>
+
+      {/* notifications */}
+      <div
+        className={`
+        mt-4 transition-opacity duration-300
+        ${error || formError || success || busy ? 'opacity-100' : 'opacity-0'}
+      `}>
+        {busy && <p className='line-clamp-3 text-center'> <Loading className="text-4xl" /> </p>}
+        {error && <p className='line-clamp-3 text-center'> {error.message} </p>}
+        {formError && <p className='line-clamp-3 text-center'> {formError.message} </p>}
+        {success && <p className='line-clamp-3 text-center'> {success} </p>}
+      </div>
+
+      {/* Switch asset modal */}
+      <FullScreenOverlay open={tokenToSwitchFor} onClose={closeSelectAssetModal}
+        className={`bg-opacity-50 bg-black flex justify-center`}
+      >
+        {tokenToSwitchFor && (
+          <div className={`${classes.card} max-w-lg mx-4 my-auto`}>
+            <AssetsSelectRadios 
+              name={tokenToSwitchFor}
+              className={`flex-grow`}
+              currentAsset={assetToSwitch} 
             />
-        ))}
-        <FormSingleSubmitButton className="mt-4" onClick={closeSelectAssetModal}>Back</FormSingleSubmitButton>
-      </div>}
-    </div>
-  </form>)
+            <FormSingleSubmitButton className="mt-4" onClick={closeSelectAssetModal}>Back</FormSingleSubmitButton>
+          </div>
+        )}
+      </FullScreenOverlay>
+    </form>)
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 function useObservable(obs$){
     const [state, setState] = useState()
+    const [error, setError] = useState()
     useEffect(() => {
         try {
             let sub = obs$.subscribe({
@@ -11,10 +12,11 @@ function useObservable(obs$){
             return ()=>{sub.unsubscribe()}
         } catch (error) {
             console.log(error)
+            setError(error)
         }
     }, [obs$])
 
-    return state
+    return [state, error]
 }
 
 export default useObservable

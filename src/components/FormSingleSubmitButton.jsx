@@ -7,3 +7,5 @@ export function FormSingleSubmitButton({
     <span>{children || "Submit"}</span>
   </button>)
 }
+
+export default FormSingleSubmitButton

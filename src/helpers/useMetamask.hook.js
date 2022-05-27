@@ -1,12 +1,12 @@
 import { createContext, useEffect, useState } from 'react';
-import {ethers} from 'ethers';
+import { ethers } from 'ethers';
 import detectEthereumProvider from '@metamask/detect-provider';
-import {ClientError} from './errors';
+import { ClientError } from './errors';
 
 export const EthereumContext = createContext({});
 
-export function getMetamaskErrorReason(error){
-    if(error.data) {
+export function getMetamaskErrorReason(error) {
+    if (error.data) {
         return getMetamaskErrorReason(error.data)
     } else {
         return error.reason || error.message || 'MM:Unknown error'
@@ -20,11 +20,11 @@ export function useMetamask() {
     const [errors, setErrors] = useState([])
     useEffect(() => {
         setErrors(providerError || chainChangeError || accountsError ? [providerError, chainChangeError, accountsError].filter(x => !!x) : [])
-        return ()=>{}
+        return () => { }
     }
-    , [providerError,chainChangeError,accountsError])
-    
-    const clear = ()=>{setErrors([])}
+        , [providerError, chainChangeError, accountsError])
+
+    const clear = () => { setErrors([]) }
 
     return [
         provider,
@@ -39,7 +39,7 @@ export function useReloadOnChainIdChange(provider) {
     const [error, setError] = useState(void 0)
     useEffect(() => {
         try {
-            if(!window.ethereum) return
+            if (!window.ethereum) return
             window.ethereum.on('chainChanged', handleChainChanged);
             setError(void 0)
         } catch (error) {
@@ -63,7 +63,7 @@ export function useUserAccounts() {
     const [error, setError] = useState(void 0);
     useEffect(() => {
         try {
-            if(!window.ethereum) return
+            if (!window.ethereum) return
             window.ethereum
                 .request({ method: 'eth_accounts' })
                 .then(handleAccountsChanged)
@@ -73,7 +73,7 @@ export function useUserAccounts() {
                     // eth_accounts will return an empty array.
                     setError(new ClientError(err, "MM:Promise failed. Unable to fetch ethereum accounts"));
                 });
-    
+
             // Note that this event is emitted on page load.
             // If the array of accounts is non-empty, you're already
             // connected.
@@ -88,7 +88,7 @@ export function useUserAccounts() {
 
     function connect() {
         try {
-            if(!window.ethereum) {
+            if (!window.ethereum) {
                 console.log('ethereum is not supported')
                 return
             }
@@ -101,7 +101,7 @@ export function useUserAccounts() {
                         // If this happens, the user rejected the connection request.
                         setError(new Error("MM:4001: Please connect to MetaMask.")); // no need to log via Err
                     } else {
-                        if(err.code === -32002){
+                        if (err.code === -32002) {
                             // when user close metamask while connecting, this locks the connect button >> hard reload
                             window.location.reload()
                         }
@@ -126,7 +126,7 @@ export function useUserAccounts() {
             }
         } catch (error) {
             setAccount(void 0)
-            if(error.message === 'accounts.length === 0') {
+            if (error.message === 'accounts.length === 0') {
                 setError(new Error("Connect MetaMask"))
             } else {
                 setError(new ClientError(error, "Unabe to handle accounts changed, try reloading the page and/or metamask"))
@@ -137,13 +137,13 @@ export function useUserAccounts() {
     return [currentAccount, connect, error]
 }
 
-export function useMetamaskProvider(isOff=false) {
+export function useMetamaskProvider(isOff = false) {
 
     const [provider, setProvider] = useState(void 0)
     const [error, setError] = useState(void 0)
     useEffect(() => {
         try {
-            if(isOff) return
+            if (isOff) return
             detectEthereumProvider()
                 .then(_prov => {
                     if (_prov) {
